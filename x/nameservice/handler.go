@@ -51,8 +51,9 @@ func handleMsgBuyName(ctx sdk.Context, keeper k.Keeper, msg loc.MsgBuyName) (*sd
 		if err != nil {
 			return nil, err
 		}
-
 	}
+	keeper.SetOwner(ctx, msg.Name, msg.Buyer)
+	keeper.SetPrice(ctx, msg.Name, msg.Bid)
 	return &sdk.Result{}, nil
 }
 
