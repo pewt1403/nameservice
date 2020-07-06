@@ -2,12 +2,13 @@ package app
 
 import (
 	"encoding/json"
-	"io"
 	"os"
 
+	"github.com/pewt1403/nameservice/x/nameservice"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmos "github.com/tendermint/tendermint/libs/os"
+	tmtypes "github.com/tendermint/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
 
 	bam "github.com/cosmos/cosmos-sdk/baseapp"
@@ -33,12 +34,12 @@ var (
 	// TODO: rename your cli
 
 	// DefaultCLIHome default home directories for the application CLI
-	DefaultCLIHome = os.ExpandEnv("$HOME/.appli")
+	DefaultCLIHome = os.ExpandEnv("$HOME/.nscli")
 
 	// TODO: rename your daemon
 
 	// DefaultNodeHome sets the folder where the applcation data and configuration will be stored
-	DefaultNodeHome = os.ExpandEnv("$HOME/.appd")
+	DefaultNodeHome = os.ExpandEnv("$HOME/.nsd")
 
 	// ModuleBasics The module BasicManager is in charge of setting up basic,
 	// non-dependant module elements, such as codec registration
@@ -53,6 +54,8 @@ var (
 		slashing.AppModuleBasic{},
 		supply.AppModuleBasic{},
 		// TODO: Add your module(s) AppModuleBasic
+
+		nameservice.AppModule{},
 	)
 
 	// module account permissions
@@ -100,6 +103,7 @@ type nameServiceApp struct {
 	supplyKeeper   supply.Keeper
 	paramsKeeper   params.Keeper
 	// TODO: Add your module(s)
+	nsKeeper nameservice.Keeper
 
 	// Module Manager
 	mm *module.Manager
@@ -112,32 +116,29 @@ type nameServiceApp struct {
 var _ simapp.App = (*nameServiceApp)(nil)
 
 // NewnameserviceApp is a constructor function for nameServiceApp
-func NewInitApp(
-	logger log.Logger, db dbm.DB, traceStore io.Writer, loadLatest bool,
-	invCheckPeriod uint, baseAppOptions ...func(*bam.BaseApp),
+func NewNameServiceApp(
+	logger log.Logger, db dbm.DB, baseAppOptions ...func(*bam.BaseApp),
 ) *nameServiceApp {
 	// First define the top level codec that will be shared by the different modules
 	cdc := MakeCodec()
 
 	// BaseApp handles interactions with Tendermint through the ABCI protocol
 	bApp := bam.NewBaseApp(appName, logger, db, auth.DefaultTxDecoder(cdc), baseAppOptions...)
-	bApp.SetCommitMultiStoreTracer(traceStore)
 	bApp.SetAppVersion(version.Version)
 
 	// TODO: Add the keys that module requires
 	keys := sdk.NewKVStoreKeys(bam.MainStoreKey, auth.StoreKey, staking.StoreKey,
-		supply.StoreKey, distr.StoreKey, slashing.StoreKey, params.StoreKey)
+		supply.StoreKey, distr.StoreKey, slashing.StoreKey, params.StoreKey, nameservice.StoreKey)
 
 	tKeys := sdk.NewTransientStoreKeys(staking.TStoreKey, params.TStoreKey)
 
 	// Here you initialize your application with the store keys it requires
 	var app = &nameServiceApp{
-		BaseApp:        bApp,
-		cdc:            cdc,
-		invCheckPeriod: invCheckPeriod,
-		keys:           keys,
-		tKeys:          tKeys,
-		subspaces:      make(map[string]params.Subspace),
+		BaseApp:   bApp,
+		cdc:       cdc,
+		keys:      keys,
+		tKeys:     tKeys,
+		subspaces: make(map[string]params.Subspace),
 	}
 
 	// The ParamsKeeper handles parameter storage for the application
@@ -206,6 +207,11 @@ func NewInitApp(
 	)
 
 	// TODO: Add your module(s) keepers
+	app.nsKeeper = nameservice.NewKeeper(
+		app.cdc,
+		keys[nameservice.StoreKey],
+		app.bankKeeper,
+	)
 
 	// NOTE: Any module instantiated in the module manager that is later modified
 	// must be passed by reference here.
@@ -219,7 +225,6 @@ func NewInitApp(
 		// TODO: Add your module(s)
 		staking.NewAppModule(app.stakingKeeper, app.accountKeeper, app.supplyKeeper),
 		slashing.NewAppModule(app.slashingKeeper, app.accountKeeper, app.stakingKeeper),
-
 	)
 	// During begin block slashing happens after distr.BeginBlocker so that
 	// there is nothing left over in the validator fee pool, so as to keep the
@@ -263,11 +268,9 @@ func NewInitApp(
 	app.MountKVStores(keys)
 	app.MountTransientStores(tKeys)
 
-	if loadLatest {
-		err := app.LoadLatestVersion(app.keys[bam.MainStoreKey])
-		if err != nil {
-			tmos.Exit(err.Error())
-		}
+	err := app.LoadLatestVersion(app.keys[bam.MainStoreKey])
+	if err != nil {
+		tmos.Exit(err.Error())
 	}
 
 	return app
@@ -300,6 +303,16 @@ func (app *nameServiceApp) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock)
 	return app.mm.EndBlock(ctx, req)
 }
 
+//////////////////////////////////////////////////////////////////////////
+func (app *nameServiceApp) GetKey(storeKey string) *sdk.KVStoreKey {
+	return app.keys[storeKey]
+}
+func (app *nameServiceApp) GetTKey(storeKey string) *sdk.TransientStoreKey {
+	return app.tKeys[storeKey]
+}
+
+/////////////////////////////////////////////////////////////////////////
+
 // LoadHeight loads a particular height
 func (app *nameServiceApp) LoadHeight(height int64) error {
 	return app.LoadVersion(height, app.keys[bam.MainStoreKey])
@@ -315,6 +328,20 @@ func (app *nameServiceApp) ModuleAccountAddrs() map[string]bool {
 	return modAccAddrs
 }
 
+////////////////////////////////////////////////////////////
+func (app *nameServiceApp) ExportAppStateAndValidators(forZeroHeight bool, jailWhiteList []string) (appState json.RawMessage, validators []tmtypes.GenesisValidator, err error) {
+	ctx := app.NewContext(true, abci.Header{Height: app.LastBlockHeight()})
+	genState := app.mm.ExportGenesis(ctx)
+	appState, err = codec.MarshalJSONIndent(app.cdc, genState)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	validators = staking.WriteValidators(ctx, app.stakingKeeper)
+	return appState, validators, nil
+}
+
+////////////////////////////////////////////////////////////
 // Codec returns the application's sealed codec.
 func (app *nameServiceApp) Codec() *codec.Codec {
 	return app.cdc

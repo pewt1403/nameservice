@@ -12,6 +12,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
+	"github.com/cosmos/cosmos-sdk/x/bank"
 	"github.com/pewt1403/nameservice/x/nameservice/client/cli"
 	"github.com/pewt1403/nameservice/x/nameservice/client/rest"
 )
@@ -53,12 +54,12 @@ func (AppModuleBasic) ValidateGenesis(bz json.RawMessage) error {
 
 // RegisterRESTRoutes registers the REST routes for the nameservice module.
 func (AppModuleBasic) RegisterRESTRoutes(ctx context.CLIContext, rtr *mux.Router) {
-	rest.RegisterRoutes(ctx, rtr)
+	rest.RegisterRoutes(ctx, rtr, StoreKey)
 }
 
 // GetTxCmd returns the root tx command for the nameservice module.
 func (AppModuleBasic) GetTxCmd(cdc *codec.Codec) *cobra.Command {
-	return cli.GetTxCmd(cdc)
+	return cli.GetTxCmd(StoreKey, cdc)
 }
 
 // GetQueryCmd returns no root query command for the nameservice module.
@@ -74,14 +75,16 @@ type AppModule struct {
 
 	keeper Keeper
 	// TODO: Add keepers that your application depends on
+	bankKeeper bank.Keeper
 }
 
 // NewAppModule creates a new AppModule object
-func NewAppModule(k Keeper /*TODO: Add Keepers that your application depends on*/) AppModule {
+func NewAppModule(k Keeper /*TODO: Add Keepers that your application depends on*/, bankKeeper bank.Keeper) AppModule {
 	return AppModule{
 		AppModuleBasic: AppModuleBasic{},
 		keeper:         k,
 		// TODO: Add keepers that your application depends on
+		bankKeeper: bankKeeper,
 	}
 }
 
@@ -131,7 +134,7 @@ func (am AppModule) ExportGenesis(ctx sdk.Context) json.RawMessage {
 
 // BeginBlock returns the begin blocker for the nameservice module.
 func (am AppModule) BeginBlock(ctx sdk.Context, req abci.RequestBeginBlock) {
-	BeginBlocker(ctx, req, am.keeper)
+	//BeginBlocker(ctx, req, am.keeper)
 }
 
 // EndBlock returns the end blocker for the nameservice module. It returns no validator

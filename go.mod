@@ -1,6 +1,6 @@
-module github.com/pewt1403/nameservice
+module github.com/pewt1403/nameservice/app
 
-go 1.13
+go 1.14
 
 require (
 	github.com/btcsuite/btcd v0.0.0-20190807005414-4063feeff79a // indirect
@@ -11,6 +11,7 @@ require (
 	github.com/gorilla/mux v1.7.3
 	github.com/onsi/ginkgo v1.8.0 // indirect
 	github.com/onsi/gomega v1.5.0 // indirect
+	github.com/pewt1403/nameservice v0.0.0-20200706060628-09e228a71eb2
 	github.com/rcrowley/go-metrics v0.0.0-20190706150252-9beb055b7962 // indirect
 	github.com/spf13/afero v1.2.2 // indirect
 	github.com/spf13/cobra v0.0.6
