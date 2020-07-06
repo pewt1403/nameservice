@@ -6,6 +6,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	k "github.com/pewt1403/nameservice/x/nameservice/keeper"
+	"github.com/pewt1403/nameservice/x/nameservice/types"
 	loc "github.com/pewt1403/nameservice/x/nameservice/types"
 )
 
@@ -24,6 +25,8 @@ func NewHandler(keeper k.Keeper) sdk.Handler {
 			return handleMsgSetName(ctx, keeper, msg)
 		case loc.MsgBuyName:
 			return handleMsgBuyName(ctx, keeper, msg)
+		case loc.MsgDeleteName:
+			return handleMsgDeleteName(ctx, keeper, msg)
 		default:
 			errMsg := fmt.Sprintf("unrecognized %s message type: %T", ModuleName, msg)
 			return nil, sdkerrors.Wrap(sdkerrors.ErrUnknownRequest, errMsg)
@@ -41,6 +44,7 @@ func handleMsgBuyName(ctx sdk.Context, keeper k.Keeper, msg loc.MsgBuyName) (*sd
 	if keeper.GetPrice(ctx, msg.Name).IsAllGT(msg.Bid) {
 		return nil, sdkerrors.Wrap(sdkerrors.ErrInsufficientFunds, "Bid not high enough")
 	}
+	// If err != nil => throw error => revert
 	if keeper.HasOwner(ctx, msg.Name) {
 		err := keeper.CoinKeeper.SendCoins(ctx, msg.Buyer, keeper.GetOwner(ctx, msg.Name), msg.Bid)
 		if err != nil {
@@ -54,6 +58,16 @@ func handleMsgBuyName(ctx sdk.Context, keeper k.Keeper, msg loc.MsgBuyName) (*sd
 	}
 	keeper.SetOwner(ctx, msg.Name, msg.Buyer)
 	keeper.SetPrice(ctx, msg.Name, msg.Bid)
+	return &sdk.Result{}, nil
+}
+func handleMsgDeleteName(ctx sdk.Context, keeper k.Keeper, msg loc.MsgDeleteName) (*sdk.Result, error) {
+	if !keeper.IsNamePresent(ctx, msg.Name) {
+		return nil, sdkerrors.Wrap(types.ErrNameDoesNotExist, msg.Name)
+	}
+	if !msg.Owner.Equals(keeper.GetOwner(ctx, msg.Name)) {
+		return nil, sdkerrors.Wrap(sdkerrors.ErrUnauthorized, "Incorrect Owner")
+	}
+	keeper.DeleteWhois(ctx, msg.Name)
 	return &sdk.Result{}, nil
 }
 

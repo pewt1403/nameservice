@@ -19,6 +19,7 @@ type ParamSubspace interface {
 // as an interface so the module cannot use things that are not permitted.
 // TODO: Create interfaces of what you expect the other keepers to have to be able to use this module.
 type BankKeeper interface {
+	//Burn coin : Unrecovery
 	SubtractCoins(ctx sdk.Context, addr sdk.AccAddress, amt sdk.Coins) (sdk.Coins, error)
 	SendCoins(ctx sdk.Context, fromAddr sdk.AccAddress, toAddr sdk.AccAddress, amt sdk.Coins) error
 }
