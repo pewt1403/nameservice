@@ -1,9 +1,6 @@
 package types
 
 import (
-	"fmt"
-	"strings"
-
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -25,8 +22,8 @@ func NewWhois() Whois {
 }
 
 // implement fmt.Stringer : Make w => string
-func (w Whois) String() string {
-	return strings.TrimSpace(fmt.Sprintf(`Owner: %s
-	Value: %s
-	Price: %s`, w.Owner, w.Value, w.Price))
-}
+// func (w Whois) String() string {
+// 	return strings.TrimSpace(fmt.Sprintf(`Owner: %s
+// 	Value: %s
+// 	Price: %s`, w.Owner, w.Value, w.Price))
+// }

@@ -35,6 +35,7 @@ func main() {
 	config.SetBech32PrefixForConsensusNode(sdk.Bech32PrefixConsAddr, sdk.Bech32PrefixConsPub)
 	config.Seal()
 
+	
 	rootCmd := &cobra.Command{
 		Use:   "nscli",
 		Short: "nameservice Client",
